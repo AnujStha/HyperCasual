@@ -5,33 +5,60 @@ using UnityEngine;
 
 public class IceCreamCreator : MonoBehaviour
 {
-    private Coroutine _creator;
     [SerializeField] private int ringVertices;
     [SerializeField] private float ringSpawnRate;
     [SerializeField] private float ringRadius;
     [SerializeField] private Transform createPosition;
     [SerializeField] private Transform center;
-    [SerializeField] private Material material;
+    [SerializeField] private List<CreamProperties> creamProperties;
     [SerializeField] private float uvMapSpacing;
     [SerializeField] private float creamMoveSpeed;
     [SerializeField] private float landingPoint;
     [SerializeField] private float fillRateY;
+    private MachineState _machineState;
     private float _currentY;
     private bool _create;
-    private const float VerticesSqThreshold = .01f;
+    // private const float VerticesSqThreshold = .01f;
 
     private void Start()
     {
         _currentY = landingPoint;
-        _creator = StartCoroutine(Make());
     }
 
-    IEnumerator Make()
+    public void ChangeState(MachineState machineState)
     {
+        if (machineState==_machineState)
+        {
+            return;
+        }
+        if (_machineState==MachineState.Filled)
+        {
+            return;
+        }
+        _machineState = machineState;
+
+        foreach (CreamProperties creamProperty in creamProperties)
+        {
+            if (machineState==creamProperty.machineState)
+            {
+                StartCoroutine(Make(creamProperty));
+                return;
+            }
+        }
+    }
+
+    public MachineState GetState()
+    {
+        return _machineState;
+    }
+
+    IEnumerator Make(CreamProperties creamProperty)
+    {
+        MachineState thisMachineState = creamProperty.machineState;
         var currentPiece = new GameObject();
         var currentMeshFilter = currentPiece.AddComponent<MeshFilter>();
         var meshRenderer = currentPiece.AddComponent<MeshRenderer>();
-        meshRenderer.material = material;
+        meshRenderer.material = creamProperty.machineMaterial;
         var currentMesh = new Mesh();
         currentMeshFilter.mesh = currentMesh;
         float currentUvPosition=0;
@@ -39,15 +66,21 @@ public class IceCreamCreator : MonoBehaviour
         Dictionary<int, Vector3> targetValues=new Dictionary<int, Vector3>();
         StartCoroutine(CreamAnimator(currentMesh, targetValues));
 
-        float deltaSpawnTime = 1 / ringSpawnRate;
-        WaitForSeconds waiter = new WaitForSeconds(deltaSpawnTime);
-        float fillRate = deltaSpawnTime * fillRateY;
-        while (true)
+        float fillRate = fillRateY/ringSpawnRate;// (1/ringSpawnRate) gives delta time 
+        WaitForSeconds wait = new WaitForSeconds(1 / ringSpawnRate);
+        do
         {
-            CreateRing(currentMesh,targetValues,currentUvPosition);
+            // time to create ring
+            CreateRing(currentMesh, targetValues, currentUvPosition);
             currentUvPosition += uvMapSpacing; // move uv up. uv will repeat itself
             _currentY += fillRate;
-            yield return waiter;
+            yield return wait;
+        } while (thisMachineState == _machineState);
+
+        if (currentMesh.vertices.Length<=ringVertices+1)
+        {
+            // only one ring is created so create one more
+            CreateRing(currentMesh, targetValues, currentUvPosition);
         }
     }
 
@@ -141,7 +174,7 @@ public class IceCreamCreator : MonoBehaviour
         currentMesh.triangles = newTriangles;
     }
 
-    IEnumerator CreamAnimator(Mesh movingMesh, Dictionary<int,Vector3> indexToTarget)
+    private IEnumerator CreamAnimator(Mesh movingMesh, Dictionary<int,Vector3> indexToTarget)
     {
         yield return null;// wait a frame before starting
         
@@ -152,11 +185,15 @@ public class IceCreamCreator : MonoBehaviour
             List<int> removingArray = new List<int>();
             foreach (var creamVertex in indexToTarget)
             {
-                // calculate normalized direction to travel and move towards it with 'creamMoveSpeed' speed
-                newPositions[creamVertex.Key] += (creamVertex.Value - newPositions[creamVertex.Key]).normalized * (creamMoveSpeed * Time.deltaTime);
+                // // calculate normalized direction to travel and move towards it with 'creamMoveSpeed' speed
+                // newPositions[creamVertex.Key] += (creamVertex.Value - newPositions[creamVertex.Key]).normalized * (creamMoveSpeed * Time.deltaTime);
                 
-                if (Vector3.SqrMagnitude(creamVertex.Value-newPositions[creamVertex.Key])<VerticesSqThreshold)
+                // first drop down, when reached height, align
+                newPositions[creamVertex.Key].y -= creamMoveSpeed*Time.deltaTime;
+                
+                if (newPositions[creamVertex.Key].y<creamVertex.Value.y)
                 {
+                    newPositions[creamVertex.Key] = creamVertex.Value;
                     removingArray.Add(creamVertex.Key);
                 }
             }
@@ -170,5 +207,24 @@ public class IceCreamCreator : MonoBehaviour
 
             yield return null;
         }
+    }
+
+    [Serializable]
+    public class CreamProperties
+    {
+        public MachineState machineState;
+        public Material machineMaterial;
+    }
+
+    public enum MachineState
+    {
+        None,
+        Vanilla,
+        Strawberry,
+        Chocolate,
+        VanillaAndStrawberry,
+        VanillaAndChocolate,
+        StrawberryAndChocolate,
+        Filled
     }
 }
