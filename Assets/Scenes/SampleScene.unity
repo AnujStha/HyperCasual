@@ -373,7 +373,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 899792699}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1, y: 0, z: 0}
+  m_LocalPosition: {x: 2, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -414,6 +414,7 @@ MonoBehaviour:
   createPosition: {fileID: 899792700}
   material: {fileID: 2100000, guid: 7703152c69947db4a8f546cfcabc3f9c, type: 2}
   uvMapSpacing: 0.05
+  creamMoveSpeed: 0.2
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0

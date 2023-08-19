@@ -1,6 +1,6 @@
 using System;
 using System.Collections;
-using DG.Tweening;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class IceCreamCreator : MonoBehaviour
@@ -12,7 +12,9 @@ public class IceCreamCreator : MonoBehaviour
     [SerializeField] private Transform createPosition;
     [SerializeField] private Material material;
     [SerializeField] private float uvMapSpacing;
+    [SerializeField] private float creamMoveSpeed;
     private bool _create;
+    private const float VerticesSqThreshold = .01f;
 
     private void Start()
     {
@@ -28,7 +30,9 @@ public class IceCreamCreator : MonoBehaviour
         var currentMesh = new Mesh();
         currentMeshFilter.mesh = currentMesh;
         float currentUvPosition=0;
-        WaitForSeconds waiter = new WaitForSeconds(1/ringSpawnRate);
+        // for moving keep target position in dictionary
+        Dictionary<int, Vector3> targetValues=new Dictionary<int, Vector3>();
+        StartCoroutine(CreamAnimator(currentMesh, targetValues));
 
         // a strip looks like this
         // number of vertices in ring = 3
@@ -45,6 +49,7 @@ public class IceCreamCreator : MonoBehaviour
         // two triangles of this quad are [4,1,0] and [4,5,1] (creating clockwise is important)
         // Note: in cylinder first and last lies in same position and are not connected. not filling gap because it causes issue while texturing
         
+        WaitForSeconds waiter = new WaitForSeconds(1/ringSpawnRate);
         while (true)
         {
             var createPoint = createPosition.position;
@@ -58,7 +63,7 @@ public class IceCreamCreator : MonoBehaviour
             Array.Copy(currentMesh.vertices,newPoints,startingVertexIndex);
             Array.Copy(currentMesh.normals,newNormals,startingVertexIndex);
             Array.Copy(currentMesh.uv,newUv,startingVertexIndex);
-            
+
             // create points
             for (int i = 0; i < ringVertices+1; i++)
             {
@@ -69,6 +74,9 @@ public class IceCreamCreator : MonoBehaviour
                 newPoints[startingVertexIndex + i] = point;
                 newNormals[startingVertexIndex + i] = point - createPoint;// normals are pointing from center to created point
                 newUv[startingVertexIndex + i] = new Vector2(factor / 2, currentUvPosition);
+                
+                // set end point
+                targetValues.Add(startingVertexIndex+i,createPoint-Vector3.up*.4f);
             }
             currentUvPosition += uvMapSpacing;// move uv up. uv will repeat itself
             currentMesh.vertices = newPoints;
@@ -108,6 +116,37 @@ public class IceCreamCreator : MonoBehaviour
 
             currentMesh.triangles = newTriangles;
             yield return waiter;
+        }
+    }
+
+    IEnumerator CreamAnimator(Mesh movingMesh, Dictionary<int,Vector3> indexToTarget)
+    {
+        yield return null;// wait a frame before starting
+        
+        while (indexToTarget!=null&&indexToTarget.Count>0)
+        {
+            Vector3[] newPositions=new Vector3[movingMesh.vertices.Length];
+            Array.Copy(movingMesh.vertices,newPositions, movingMesh.vertices.Length);
+            List<int> removingArray = new List<int>();
+            foreach (var creamVertex in indexToTarget)
+            {
+                // calculate normalized direction to travel and move towards it with 'creamMoveSpeed' speed
+                newPositions[creamVertex.Key] += (creamVertex.Value - newPositions[creamVertex.Key]).normalized * (creamMoveSpeed * Time.deltaTime);
+                
+                if (Vector3.SqrMagnitude(creamVertex.Value-newPositions[creamVertex.Key])<VerticesSqThreshold)
+                {
+                    removingArray.Add(creamVertex.Key);
+                }
+            }
+
+            movingMesh.vertices = newPositions;
+
+            foreach (int i in removingArray)
+            {
+                indexToTarget.Remove(i);
+            }
+
+            yield return null;
         }
     }
 }
