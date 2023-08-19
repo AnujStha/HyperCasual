@@ -2,65 +2,69 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MachineControl : MonoBehaviour
 {
     [SerializeField] private IceCreamCreator creamCreator;
 
-    private bool _isStrawberry;
-    private bool _isChocolate;
-    private bool _isVanilla;
-    private void Update()
+    [SerializeField] private CustomButton isStrawberry;
+    [SerializeField] private CustomButton isChocolate;
+    [SerializeField] private CustomButton isVanilla;
+    [SerializeField] private float inputCheckRate; // for buffering input for 2 buttons
+
+    private void Start()
     {
-        if (_isStrawberry||Input.GetKey(KeyCode.S))
+        StartCoroutine(InputUpdate());
+    }
+
+    private IEnumerator InputUpdate()
+    {
+        WaitForSeconds waitForSeconds = new WaitForSeconds(1 / inputCheckRate);
+        while (true)
         {
-            if (_isChocolate||Input.GetKey(KeyCode.C))
+            if (isStrawberry.IsDown||Input.GetKey(KeyCode.S))
             {
-                creamCreator.ChangeState(IceCreamCreator.MachineState.StrawberryAndChocolate);
+                if (isChocolate.IsDown||Input.GetKey(KeyCode.C))
+                {
+                    creamCreator.ChangeState(IceCreamCreator.MachineState.StrawberryAndChocolate);
+                }
+                else if (isVanilla.IsDown || Input.GetKey(KeyCode.V))
+                {
+                    creamCreator.ChangeState(IceCreamCreator.MachineState.VanillaAndStrawberry);
+                }
+                else
+                {
+                    creamCreator.ChangeState(IceCreamCreator.MachineState.Strawberry);
+                }
             }
-            else if (_isVanilla || Input.GetKey(KeyCode.V))
+            else if (isChocolate.IsDown || Input.GetKey(KeyCode.C))
             {
-                creamCreator.ChangeState(IceCreamCreator.MachineState.VanillaAndStrawberry);
+                if (isVanilla.IsDown || Input.GetKey(KeyCode.V))
+                {
+                    creamCreator.ChangeState(IceCreamCreator.MachineState.VanillaAndChocolate);
+                }
+                else
+                {
+                    creamCreator.ChangeState(IceCreamCreator.MachineState.Chocolate);
+                }
+            }
+            else if(isVanilla.IsDown || Input.GetKey(KeyCode.V))
+            {
+                creamCreator.ChangeState(IceCreamCreator.MachineState.Vanilla);
             }
             else
             {
-                creamCreator.ChangeState(IceCreamCreator.MachineState.Strawberry);
+                creamCreator.ChangeState(IceCreamCreator.MachineState.None);
             }
-        }
-        else if (_isChocolate || Input.GetKey(KeyCode.C))
-        {
-            if (_isVanilla || Input.GetKey(KeyCode.V))
-            {
-                creamCreator.ChangeState(IceCreamCreator.MachineState.VanillaAndChocolate);
-            }
-            else
-            {
-                creamCreator.ChangeState(IceCreamCreator.MachineState.Chocolate);
-            }
-        }
-        else if(_isVanilla || Input.GetKey(KeyCode.V))
-        {
-            creamCreator.ChangeState(IceCreamCreator.MachineState.Vanilla);
-        }
-        else
-        {
-            creamCreator.ChangeState(IceCreamCreator.MachineState.None);
+
+            yield return waitForSeconds;
         }
     }
 
-    public void StrawberryPressed()
+    public void ReloadScene()
     {
-        
-    }
-
-    public void ChocolatePressed()
-    {
-        
-    }
-
-    public void VanillaPressed()
-    {
-        
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }
